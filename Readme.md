@@ -52,3 +52,7 @@ https://www.seqanswers.com/forum/bioinformatics/bioinformatics-aa/35881-introduc
 Introducing RemoveHuman: Human Contaminant Removal
 
 https://www.seqanswers.com/forum/bioinformatics/bioinformatics-aa/37175-introducing-removehuman-human-contaminant-removal
+
+Methods in Microbiomics
+
+https://methods-in-microbiomics.readthedocs.io/en/latest/preprocessing/preprocessing.html
