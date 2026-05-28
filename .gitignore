@@ -5,7 +5,7 @@ __pycache__/
 *$py.class
 .DS_Store
 .idea
-CLAUDE.MD
+CLAUDE.md
 
 # C extensions
 *.so
