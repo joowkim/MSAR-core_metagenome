@@ -149,6 +149,38 @@ process bowtie2 {
 }
 
 
+process star_host_removal {
+    tag "star on ${sample_name}"
+    label "process_high"
+
+    publishDir "${launchDir}/analysis/star"
+
+    module "STAR/2.7.10a"
+
+    input:
+    tuple val(sample_name), path(reads), val(is_SE)
+
+    output:
+    tuple val(sample_name), path("${sample_name}.host_remove.R{1,2}.fastq.gz"), val(is_SE), emit: split_reads
+    path("${sample_name}.Log.final.out"), emit: star_log
+
+    script:
+    def index = params.star_index.(params.genome)
+    """
+        STAR --runThreadN ${task.cpus} \
+            --genomeDir ${index} \
+            --readFilesIn ${reads[0]} ${reads[1]} \
+            --readFilesCommand zcat \
+            --outSAMtype None \
+            --outReadsUnmapped Fastx \
+            --outFileNamePrefix ${sample_name}.
+
+        gzip -c ${sample_name}.Unmapped.out.mate1 > ${sample_name}.host_remove.R1.fastq.gz
+        gzip -c ${sample_name}.Unmapped.out.mate2 > ${sample_name}.host_remove.R2.fastq.gz
+    """
+}
+
+
 process split_reads_from_unmapped {
     tag "split reads - ${sample_name}"
     label "process_medium"
@@ -439,37 +471,41 @@ ch_reads = ch_samplesheet.splitCsv(header:true).map {
 }
 
 workflow {
-    // samplesheet applied // ch_reads = Channel.fromFilePairs(params.reads, checkIfExists: true)
     fastqc(ch_reads)
     fastp(ch_reads)
     fastq_screen(fastp.out.trim_reads)
-    bowtie2(fastp.out.trim_reads)
-    split_reads_from_unmapped(bowtie2.out.bowtie2_bam_both_unmapped_bam)
 
+    // host removal: bowtie2 for DNA, STAR for RNA
+    if (params.host_removal == "RNA") {
+        star_host_removal(fastp.out.trim_reads)
+        ch_host_removed    = star_host_removal.out.split_reads
+        ch_host_removal_qc = star_host_removal.out.star_log
+    } else {
+        bowtie2(fastp.out.trim_reads)
+        split_reads_from_unmapped(bowtie2.out.bowtie2_bam_both_unmapped_bam)
+        ch_host_removed    = split_reads_from_unmapped.out.split_reads
+        ch_host_removal_qc = bowtie2.out.samtools_stats
+    }
 
     if (params.run_metaphlan) {
-        //metaphlan(fastp.out.trim_reads)
-        metaphlan(split_reads_from_unmapped.out.split_reads)
+        metaphlan(ch_host_removed)
         make_taxa_counts(metaphlan.out.profiled_metagenome)
     }
     if (params.run_megahit) {
-        //megahit(fastp.out.trim_reads)
-        megahit(split_reads_from_unmapped.out.split_reads)
-        multiqc( fastq_screen.out.fastq_screen_out.mix(fastqc.out.zips, fastp.out.fastp_json, bowtie2.out.samtools_stats, megahit.out.log).collect() )
+        megahit(ch_host_removed)
+        multiqc( fastq_screen.out.fastq_screen_out.mix(fastqc.out.zips, fastp.out.fastp_json, ch_host_removal_qc, megahit.out.log).collect() )
     }
     if (params.run_humann) {
-        concat_fq(split_reads_from_unmapped.out.split_reads)
+        concat_fq(ch_host_removed)
         humann(concat_fq.out.concat_reads)
     }
-
     if (params.run_kraken2) {
-        kraken2(split_reads_from_unmapped.out.split_reads)
+        kraken2(ch_host_removed)
         kraken_biom(kraken2.out.kraken2_report.collect())
-        multiqc( fastq_screen.out.fastq_screen_out.mix(fastqc.out.zips, fastp.out.fastp_json, bowtie2.out.samtools_stats).collect() )
+        multiqc( fastq_screen.out.fastq_screen_out.mix(fastqc.out.zips, fastp.out.fastp_json, ch_host_removal_qc).collect() )
     }
-
     if (params.run_StrainPhlAn) {
-        StrainPhlAn(split_reads_from_unmapped.out.split_reads)
+        StrainPhlAn(ch_host_removed)
     }
 }
 
