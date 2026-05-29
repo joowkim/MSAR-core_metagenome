@@ -373,6 +373,28 @@ process kraken_biom {
 }
 
 
+process count_reads {
+    tag "${sample_name} - ${stage}"
+    label "process_low"
+
+    publishDir "${launchDir}/analysis/read_counts", mode: "copy"
+
+    input:
+    tuple val(sample_name), path(reads), val(stage)
+
+    output:
+    path("${sample_name}.${stage}.count.csv"), emit: count_csv
+
+    script:
+    """
+    read_count=\$(( \$(zcat ${reads[0]} | wc -l) / 4 ))
+    reads_million=\$(echo \$read_count | awk '{printf "%.2f", \$1 / 1000000}')
+    echo "sample,stage,reads,reads_million" > ${sample_name}.${stage}.count.csv
+    echo "${sample_name},${stage},\$read_count,\$reads_million" >> ${sample_name}.${stage}.count.csv
+    """
+}
+
+
 process make_taxa_counts {
     tag "${sample_name}"
     label "process_low"
@@ -486,6 +508,12 @@ workflow {
         ch_host_removed    = split_reads_from_unmapped.out.split_reads
         ch_host_removal_qc = bowtie2.out.samtools_stats
     }
+
+    // Count reads at raw, post-fastp, and host-removed stages
+    ch_raw_counts     = ch_reads.map { meta, reads -> [meta.sample_name, reads, "raw"] }
+    ch_fastp_counts   = fastp.out.trim_reads.map { sn, reads, se -> [sn, reads, "post_fastp"] }
+    ch_hostrem_counts = ch_host_removed.map { sn, reads, se -> [sn, reads, "host_removed"] }
+    count_reads( ch_raw_counts.mix(ch_fastp_counts, ch_hostrem_counts) )
 
     if (params.run_metaphlan) {
         metaphlan(ch_host_removed)
