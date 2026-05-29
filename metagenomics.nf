@@ -408,11 +408,17 @@ process merge_read_counts {
 
     script:
     """
-    # Write header once, then append data rows (skip header) from each file
-    echo "sample,stage,reads,reads_million" > read_counts.csv
-    for f in ${csv_files}; do
-        tail -n +2 "\$f" >> read_counts.csv
-    done
+    # Pivot long-format per-sample CSVs into one wide-format table (one row per sample)
+    awk -F',' '
+        FNR==1 { next }
+        \$2=="raw"          { raw[\$1]=\$3 }
+        \$2=="post_fastp"   { post_fastp[\$1]=\$3 }
+        \$2=="host_removed" { host_removed[\$1]=\$3 }
+        END {
+            print "sample,raw,post_fastp,host_removed"
+            for (s in raw) print s "," raw[s] "," post_fastp[s] "," host_removed[s]
+        }
+    ' ${csv_files} > read_counts.csv
     """
 }
 
