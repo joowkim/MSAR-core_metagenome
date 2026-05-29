@@ -395,6 +395,28 @@ process count_reads {
 }
 
 
+process merge_read_counts {
+    label "process_low"
+
+    publishDir "${launchDir}/analysis/read_counts", mode: "copy"
+
+    input:
+    path(csv_files)  // all per-sample count CSVs collected into one list
+
+    output:
+    path("read_counts.csv")
+
+    script:
+    """
+    # Write header once, then append data rows (skip header) from each file
+    echo "sample,stage,reads,reads_million" > read_counts.csv
+    for f in ${csv_files}; do
+        tail -n +2 "\$f" >> read_counts.csv
+    done
+    """
+}
+
+
 process make_taxa_counts {
     tag "${sample_name}"
     label "process_low"
@@ -514,6 +536,7 @@ workflow {
     ch_fastp_counts   = fastp.out.trim_reads.map { sn, reads, se -> [sn, reads, "post_fastp"] }
     ch_hostrem_counts = ch_host_removed.map { sn, reads, se -> [sn, reads, "host_removed"] }
     count_reads( ch_raw_counts.mix(ch_fastp_counts, ch_hostrem_counts) )
+    merge_read_counts( count_reads.out.count_csv.collect() )
 
     if (params.run_metaphlan) {
         metaphlan(ch_host_removed)
