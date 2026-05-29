@@ -43,18 +43,11 @@ sbatch run_metagenomics.slurm
 
 ## Dependency
 
-`slurm` `Nextflow` `bowtie2` `STAR` `samtools` `fastqc` `fastp` `multiqc` `megahit` `metaphlan4` `singularity`
-
-## Miscellaneous
-
-Introducing BBSplit: Read Binning Tool for Metagenomes and Contaminated Libraries
-
-https://www.seqanswers.com/forum/bioinformatics/bioinformatics-aa/35881-introducing-bbsplit-read-binning-tool-for-metagenomes-and-contaminated-libraries?t=41288
-
-Introducing RemoveHuman: Human Contaminant Removal
-
-https://www.seqanswers.com/forum/bioinformatics/bioinformatics-aa/37175-introducing-removehuman-human-contaminant-removal
-
-Methods in Microbiomics
-
-https://methods-in-microbiomics.readthedocs.io/en/latest/preprocessing/preprocessing.html
+| Category | Tool |
+| -------- | ---- |
+| Workflow / cluster | `Nextflow`, `SLURM`, `Singularity` |
+| QC | `FastQC`, `fastp`, `FastQ Screen`, `MultiQC` |
+| Host removal | `bowtie2` (DNA), `STAR` (RNA), `samtools` |
+| Assembly | `MEGAHIT` |
+| Classification | `MetaPhlAn4`, `Kraken2`, `kraken-biom` |
+| Functional profiling | `HUMAnN3` |
