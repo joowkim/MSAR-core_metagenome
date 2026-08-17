@@ -14,6 +14,7 @@ process bwa_mem {
     tuple val(sample_name), path("${sample_name}.bam"), emit: bam_file
 
     // -M: mark shorter split hits as secondary
+    // -F 260 removes unmapped reads (4) and secondary alignments (256), just keep only primary alignment
     script:
     def index = params.bwa_index
     def input_reads = is_SE ? "${reads[0]}" : "${reads[0]} ${reads[1]}"
@@ -22,6 +23,7 @@ process bwa_mem {
     -t ${task.cpus} \
     ${index} \
     ${input_reads} \
+    | samtools view -b -F 260 \
     | samtools sort \
     -O "BAM" \
     -o ${sample_name}.bam -
