@@ -26,7 +26,7 @@ process multiqc {
     script:
     config_yaml = "/home/kimj32/config_defaults.yaml"
     """
-        multiqc ${files} --filename "multiqc_report.html" --config ${config_yaml}
+        multiqc ${files} --filename "multiqc_report.html" --config ${config_yaml} --interactive
     """
 }
 
