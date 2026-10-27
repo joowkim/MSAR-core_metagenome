@@ -158,11 +158,13 @@ process humann {
 
 process kraken2 {
     tag "kraken2 on ${sample_name}"
-    label "process_high"
+    label "kraken"
 
     publishDir "${launchDir}/analysis/kraken2"
 
-    module "kraken/2.1.2"
+    // module "kraken/2.1.2"
+    module "kraken/2.18.0"
+
 
     input:
     tuple val(sample_name), path(reads), val(is_SE)
@@ -172,15 +174,30 @@ process kraken2 {
     path("*_report.txt"), emit: kraken2_report
 
     script:
-    def kraken2_db = "/mnt/beegfs/kimj32/reference/KRAKEN_DB"
+    //def kraken2_db = "/mnt/beegfs/kimj32/reference/KRAKEN_DB"
+    def kraken2_db = "/mnt/isilon/w_cores/GenomicsCore/MSARFcore/0-resources-or-dbs/k2_pluspf_20260626"
     def paired_flag = is_SE ? "" : "--paired"
-    def input_reads = is_SE ? "${reads[0]}" : "${reads}"
+    def r1_new = reads[0].getName().replace(".fastq.gz", "#.fastq.gz")
+    def r2_new = is_SE ? "" : reads[1].getName().replace(".fastq.gz", "#.fastq.gz")
+    def input_reads = is_SE ? "'${r1_new}'" : "'${r1_new}' '${r2_new}'"
+
+    def link_cmd = is_SE
+        ? "ln -s ${reads[0]} '${r1_new}'"
+        : "ln -s ${reads[0]} '${r1_new}'\nln -s ${reads[1]} '${r2_new}'"
+    // def input_reads = is_SE ? "${reads[0]}" : "${reads}"
+    //def r1 = reads[0].toString().replace(".fastq.gz", "#.fastq.gz")
+    //def input_reads = is_SE \
+    //    ? r1 \
+    //    : "${r1} ${reads[1].toString().replace('.fastq.gz', '#.fastq.gz')}"
     """
-        kraken2 --db ${kraken2_db} \
+        export LD_LIBRARY_PATH="/cm/local/apps/gcc/15.2.0/lib64"
+        ${link_cmd}
+        k2 classify  --db ${kraken2_db} \
         --threads ${task.cpus} \
         --use-names \
         --output ${sample_name}_kraken.txt \
         --report ${sample_name}_report.txt \
+        --memory-mapping \
         ${paired_flag} \
         ${input_reads}
      """
